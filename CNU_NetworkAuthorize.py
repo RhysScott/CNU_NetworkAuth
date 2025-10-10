@@ -12,16 +12,47 @@ proxies = {
 currentDir = os.path.dirname(__file__)
 userConfFp = os.path.join(currentDir, "userConf.json")
 
+class OnlineDevice:
+    def __init__(self, infoDict):
+        self.ip = infoDict["IP"]
+        self.mac = infoDict["MAC"]
+        self.vlan = infoDict["VLAN"]
+        self.packageNameOccupied = infoDict["Package"]["套餐名称"]
+        
+class FrequentlyUsedDevice:
+    def __init__(self, infoDict):
+        self.mac = infoDict["MAC"]
+        self.desc = infoDict["Desc"]
+        
+class Info:
+    def __init__(self, infoDict):
+        self.ip = infoDict["IP"]
+        self.mac = infoDict["MAC"]
+        self.name = infoDict["XM"]
+        self.department = infoDict["DP"]
+        self.numberOfPackages = infoDict["MOC"]
+        self.packages = [package["套餐名称"] for package in infoDict["KXTC"]]
+        self.userGroup = infoDict["UG"]
+        self.onlineDevice = [OnlineDevice(onlineDevice) for onlineDevice in infoDict["OIA"]]
+        self.frequentlyUsedDevice = [FrequentlyUsedDevice(frequentlyUsedDevice) for frequentlyUsedDevice in infoDict["CYXX"]]
+        
 def createConfigurationFile():
     data = {
         "username": "这里改成你的学号",
         "password": "这里改成你的校园网密码",
-        "ISP": "这里改成你的运营商: [电信|联通|移动]"
+        "defaultPackage": "这里改成你的默认: 例如电信-100M"
     }
     f = open(userConfFp, "w", encoding="utf8")
     json.dump(data, f, ensure_ascii=False, indent=2)
     f.close()
 
+
+def try2GetJsonFromResponse(response):
+    try:
+        return response.json()
+    except Exception:
+        print("解析响应失败")
+        exit()
 
 # 如果配置文件不存在, 先创建配置文件
 if not os.path.exists(userConfFp):
@@ -52,41 +83,42 @@ cookies = {
 
 # 构造headers
 headers = {
-  "Origin": "http://cc.nsu.edu.cn",
-  "Referer": "http://cc.nsu.edu.cn",
-  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
-  "Accept": "application/json, text/plain, */*",
-  "Accept-Encoding": "gzip, deflate, br, zstd",
-  "Accept-Language": "en-US,en;q=0.9,zh;q=0.8,zh-CN;q=0.7",
+    "Origin": "http://cc.nsu.edu.cn",
+    "Referer": "http://cc.nsu.edu.cn",
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Encoding": "gzip, deflate, br, zstd",
+    "Accept-Language": "en-US,en;q=0.9,zh;q=0.8,zh-CN;q=0.7",
 }
 
 
 data_since_login = {"username":student_id, "password": account_password,"remember":"true","DoWhat":"Login"}
 data_since_get_info = {"DoWhat":"GetInfo"}
-data_since_open_net = {"DoWhat":"OpenNet","Package":f"学生-{userInfo['ISP']}-100M"}
 
 auth_url = "http://cc.nsu.edu.cn/Auth.ashx"
 
 response = requests.post(auth_url, headers=headers, json=data_since_login, cookies=cookies, verify=False, proxies=proxies)
-print(response.json()["Message"])
+data = try2GetJsonFromResponse(response)
 
-if (response.json()["Message"] != "身份验证成功！"):
+print(data["Message"])
+if not data["Result"]:
     exit()
+
 
 response = requests.post(auth_url, headers=headers, json=data_since_get_info, cookies=cookies, verify=False, proxies=proxies)
-print(response.json()["Message"])
-
-if (response.json()["Message"] != "查询信息成功！"):
+data = try2GetJsonFromResponse(response)
+print(data["Message"])
+if not data["Result"]:
     exit()
+    
+info = Info(data["Data"])
 
-ip = response.json()["Data"]["IP"]
-mac = response.json()["Data"]["MAC"]
-student_name = response.json()["Data"]["XM"]
-
+data_since_open_net = {"DoWhat":"OpenNet","Package": info.userGroup[:-1] + "-" + userInfo['defaultPackage']}
 response = requests.post(auth_url, headers=headers, json=data_since_open_net, cookies=cookies, verify=False, proxies=proxies)
-print(response.json()["Message"])
-
-if (response.json()["Message"] != "上线成功!" and response.json()["Message"] != "同时登录数已达上限！"):
+data = try2GetJsonFromResponse(response)
+print(data["Message"])
+if not data["Result"]:
     exit()
 
-print(f"\nOkk啦， {student_name}同学， 尽情冲浪吧！\n当前IP：{ip}\n当前mac：{mac}\n当前学号：{student_id}")
+
+print(f"\nOkk啦, {info.name}同学， 尽情冲浪吧！\n当前IP: {info.ip}\n当前mac: {info.mac}\n当前学号: {student_id}")
