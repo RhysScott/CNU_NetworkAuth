@@ -4,10 +4,7 @@ import os
 import json
 
 # 禁用代理
-proxies = {
-    "http": None,
-    "https": None
-}
+proxies = None
 
 currentDir = os.path.dirname(__file__)
 userConfFp = os.path.join(currentDir, "userConf.json")
@@ -51,6 +48,7 @@ def try2GetJsonFromResponse(response):
     try:
         return response.json()
     except Exception:
+        print(response.text)
         print("解析响应失败")
         exit()
 
@@ -95,7 +93,7 @@ headers = {
 data_since_login = {"username":student_id, "password": account_password,"remember":"true","DoWhat":"Login"}
 data_since_get_info = {"DoWhat":"GetInfo"}
 
-auth_url = "http://cc.nsu.edu.cn/Auth.ashx"
+auth_url = "http://2.2.2.2/Auth.ashx"
 
 response = requests.post(auth_url, headers=headers, json=data_since_login, cookies=cookies, verify=False, proxies=proxies)
 data = try2GetJsonFromResponse(response)
@@ -116,7 +114,7 @@ info = Info(data["Data"])
 data_since_open_net = {"DoWhat":"OpenNet","Package": info.userGroup[:-1] + "-" + userInfo['defaultPackage']}
 response = requests.post(auth_url, headers=headers, json=data_since_open_net, cookies=cookies, verify=False, proxies=proxies)
 data = try2GetJsonFromResponse(response)
-print(data["Message"])
+print(data)
 if not data["Result"]:
     exit()
 

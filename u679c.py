@@ -6,6 +6,8 @@ Ref: https://blog.csdn.net/guo666aoao/article/details/147273148?spm=1001.2014.30
 from Crypto.Cipher import DES
 from Crypto.Util.Padding import pad
 import binascii
+
+
  
 def f_key(username):
     key_str = username[-4:] + username + "12345678"
